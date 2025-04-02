@@ -1,0 +1,8 @@
+# requirements.txt
+Flask>=2.0        # Web framework 
+Flask-Cors>=3.0   # For handling Cross-Origin Resource Sharing 
+supabase>=1.0     # Supabase Python client library 
+WeasyPrint>=53.0  # For generating PDF from HTML/CSS 
+pandas>=1.0       # For data manipulation (used in Excel export) 
+openpyxl>=3.0     # For reading/writing Excel files 
+Jinja2>=3.0       # Template engine (used by Flask and PDF generation) 

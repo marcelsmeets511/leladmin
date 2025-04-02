@@ -1,0 +1,58 @@
+/* static/css/style.css */
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+/* Styles for WeasyPrint PDF generation (if needed) */
+.factuur-header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 10px;
+}
+
+.factuur-details {
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.factuur-details h3 {
+    margin-bottom: 5px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 2px;
+}
+
+.behandelingen-tabel {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.behandelingen-tabel th,
+.behandelingen-tabel td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.behandelingen-tabel th {
+    background-color: #f2f2f2;
+}
+
+.totaal {
+    text-align: right;
+    font-weight: bold;
+    margin-top: 20px;
+    font-size: 1.1em;
+}
+
+.betaalinstructies {
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #ccc;
+}
