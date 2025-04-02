@@ -6,3 +6,4 @@ WeasyPrint>=53.0  # For generating PDF from HTML/CSS
 pandas>=1.0       # For data manipulation (used in Excel export) 
 openpyxl>=3.0     # For reading/writing Excel files 
 Jinja2>=3.0       # Template engine (used by Flask and PDF generation) 
+gunicorn==21.2.0
