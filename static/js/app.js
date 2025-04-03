@@ -3,7 +3,7 @@ Ext.application({
     name: 'BillingApp',
     extend: 'Ext.app.Application', // Define a basic Application class
 
-    requires: [
+/*    requires: [
         'Ext.container.Viewport',
         'Ext.grid.Panel',
         'Ext.window.Window',
@@ -24,8 +24,8 @@ Ext.application({
         'Ext.MessageBox',
         'Ext.grid.filters.Filters', // Explicitly require gridfilters plugin class
         'Ext.grid.feature.Grouping' // Explicitly require grouping feature class
-    ],
-
+    ],*/
+,
     // Define Models based on your backend data structure
     models: {
         Client: Ext.define('BillingApp.model.Client', {
