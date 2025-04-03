@@ -978,7 +978,7 @@ Ext.application({
 
 // Define a basic Application class (required by extend: 'Ext.app.Application')
 // This was defined earlier, ensure it's not duplicated.
-/*
+
 Ext.define('BillingApp.Application', {
     extend: 'Ext.app.Application',
     name: 'BillingApp',
@@ -986,4 +986,4 @@ Ext.define('BillingApp.Application', {
         'Main'
     ]
 });
-*/
+
