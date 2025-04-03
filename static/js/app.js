@@ -21,7 +21,7 @@ Ext.application({
         'Ext.button.Button',
         'Ext.tab.Panel',
         'Ext.Date',
-        'Ext.MessageBox',
+        'Ext.Msg',
         'Ext.grid.filters.Filters', // Explicitly require gridfilters plugin class
         'Ext.grid.feature.Grouping' // Explicitly require grouping feature class
     ],
