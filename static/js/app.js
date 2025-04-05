@@ -25,7 +25,7 @@ Ext.application({
         'Ext.grid.filters.Filters', // Explicitly require gridfilters plugin class
         'Ext.grid.feature.Grouping' // Explicitly require grouping feature class
     ],*/
-,
+
     // Define Models based on your backend data structure
     models: {
         Client: Ext.define('BillingApp.model.Client', {
