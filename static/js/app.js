@@ -871,10 +871,10 @@ Ext.application({
                          xtype: 'gridpanel',
                          store: 'clients', // Reference store by ID
                          plugins: ['responsive'], // Use responsive plugin
-                         responsiveConfig: {
-                             'width < 600': { hideHeaders: true },
-                             'width >= 600': { hideHeaders: false }
-                         },
+                         //responsiveConfig: {
+                        //     'width < 600': { hideHeaders: true },
+                        //     'width >= 600': { hideHeaders: false }
+                        // },
                          columns: [
                              { text: 'Name', dataIndex: 'naam', flex: 2, minWidth: 150 },
                              { text: 'Address', dataIndex: 'adres', flex: 3, hidden: true, responsiveConfig: { 'width >= 768': { hidden: false } } },
