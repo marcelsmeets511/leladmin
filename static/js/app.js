@@ -729,9 +729,9 @@ Ext.application({
                      title: isEdit ? 'Edit Client: ' + record.get('naam') : 'Add Client',
                      modal: true,
                      width: 500, minWidth: 300, layout: 'fit',
-                     plugins: 'responsive',
-                      responsiveFormulas: { small: 'width < 550', large: 'width >= 550' },
-                      responsiveConfig: { small: { width: '95%' }, large: { width: 500 } },
+                     //plugins: 'responsive',
+                     // responsiveFormulas: { small: 'width < 550', large: 'width >= 550' },
+                     // responsiveConfig: { small: { width: '95%' }, large: { width: 500 } },
                      items: [{
                          xtype: 'form',
                          // reference: 'clientForm', // Ref can be used but direct selection is fine too
@@ -763,7 +763,7 @@ Ext.application({
                  var win = Ext.create('Ext.window.Window', {
                      title: isEdit ? 'Edit Treatment Type: ' + record.get('naam') : 'Add Treatment Type',
                      modal: true, width: 500, minWidth: 300, layout: 'fit',
-                     plugins: 'responsive', responsiveConfig: { 'width < 550': { width: '95%' }, 'width >= 550': { width: 500 } },
+                     //plugins: 'responsive', responsiveConfig: { 'width < 550': { width: '95%' }, 'width >= 550': { width: 500 } },
                      items: [{
                          xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top' },
                          items: [
@@ -788,7 +788,7 @@ Ext.application({
                  var win = Ext.create('Ext.window.Window', {
                      title: isEdit ? 'Edit Treatment' : 'Add Treatment',
                      modal: true, width: 550, minWidth: 320, layout: 'fit',
-                     plugins: 'responsive', responsiveConfig: { 'width < 600': { width: '95%' }, 'width >= 600': { width: 550 } },
+                     //plugins: 'responsive', responsiveConfig: { 'width < 600': { width: '95%' }, 'width >= 600': { width: 550 } },
                      items: [{
                          xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top' },
                          items: [
@@ -818,7 +818,7 @@ Ext.application({
               createGenerateInvoiceWindow: function() {
                  Ext.create('Ext.window.Window', {
                      title: 'Generate Invoices', modal: true, width: 400, layout: 'fit',
-                     plugins: 'responsive', responsiveConfig: { 'width < 450': { width: '95%' }, 'width >= 450': { width: 400 } },
+                     //plugins: 'responsive', responsiveConfig: { 'width < 450': { width: '95%' }, 'width >= 450': { width: 400 } },
                      items: [{
                          xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top', allowBlank: false },
                          items: [
@@ -836,7 +836,7 @@ Ext.application({
              createExportWindow: function() { // Changed name slightly
                 Ext.create('Ext.window.Window', {
                      title: 'Export Summary to Excel', modal: true, width: 400, layout: 'fit',
-                     plugins: 'responsive', responsiveConfig: { 'width < 450': { width: '95%' }, 'width >= 450': { width: 400 } },
+                     //plugins: 'responsive', responsiveConfig: { 'width < 450': { width: '95%' }, 'width >= 450': { width: 400 } },
                      items: [{
                          xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top', allowBlank: false },
                          items: [
@@ -861,10 +861,10 @@ Ext.application({
             items: [{
                 xtype: 'tabpanel',
                 plugins: 'responsive', // Add responsive plugin to tabpanel too
-                responsiveConfig: {
-                    'width < 768': { tabPosition: 'bottom' },
-                    'width >= 768': { tabPosition: 'top' }
-                },
+                //responsiveConfig: {
+                //    'width < 768': { tabPosition: 'bottom' },
+                //    'width >= 768': { tabPosition: 'top' }
+                //},
                 items: [ // These grid definitions could be moved to separate view files
                     { // Clients Grid Panel Definition
                          title: 'Clients',
