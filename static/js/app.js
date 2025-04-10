@@ -1,38 +1,40 @@
 // static/js/app.js
 Ext.application({
     name: 'BillingApp',
-    extend: 'Ext.app.Application', // Define a basic Application class
+    extend: 'Ext.app.Application',
 
-/*    requires: [
+    // --- Explicitly require necessary classes ---
+    requires: [
         'Ext.container.Viewport',
+        'Ext.tab.Panel',
         'Ext.grid.Panel',
+        'Ext.grid.filters.Filters',     // Grid filters plugin
+        'Ext.grid.feature.Grouping',    // Grid grouping feature
+        'Ext.grid.column.Date',         // Date column
+        'Ext.grid.column.Number',       // Number column
+        'Ext.grid.column.Boolean',      // Boolean column
         'Ext.window.Window',
         'Ext.form.Panel',
-        'Ext.form.field.*',
-        'Ext.layout.container.*',
+        'Ext.form.field.*',             // Include all form field types
+        'Ext.layout.container.Fit',     // Fit layout for windows/viewport
         'Ext.data.Store',
         'Ext.data.Model',
         'Ext.data.proxy.Ajax',
         'Ext.data.reader.Json',
         'Ext.data.writer.Json',
-        'Ext.toolbar.Paging',
-        'Ext.plugin.Responsive', // For responsive design
-        'Ext.plugin.Viewport', // Ensures components scale to viewport
+        'Ext.toolbar.Paging',           // Paging toolbar
         'Ext.button.Button',
-        'Ext.tab.Panel',
         'Ext.Date',
-        'Ext.MessageBox',
-        'Ext.grid.filters.Filters', // Explicitly require gridfilters plugin class
-        'Ext.grid.feature.Grouping' // Explicitly require grouping feature class
-    ],*/
+        'Ext.MessageBox'
+    ],
 
-    // Define Models based on your backend data structure
+    // --- Define Models ---
     models: {
         Client: Ext.define('BillingApp.model.Client', {
             extend: 'Ext.data.Model',
-            idProperty: 'id', // Assuming 'id' is the primary key
+            idProperty: 'id',
             fields: [
-                { name: 'id', type: 'int', useNull: true }, // Allow null for new records
+                { name: 'id', type: 'int', useNull: true },
                 { name: 'naam', type: 'string' },
                 { name: 'adres', type: 'string' },
                 { name: 'postcode', type: 'string' },
@@ -42,48 +44,28 @@ Ext.application({
             ],
             proxy: {
                 type: 'ajax',
-                // Base URL for the entity - ID will be appended for PUT/DELETE
-                url: '/api/clienten',
-                actionMethods: { // Specify HTTP methods
-                    create : 'POST',
-                    read   : 'GET',
-                    update : 'PUT',
-                    destroy: 'DELETE'
+                api: { // Use 'api' for different URLs per action
+                    create: '/api/clienten',
+                    read: '/api/clienten',
+                    update: '/api/clienten', // Assumes PUT to /api/clienten/{id} is handled by backend
+                    destroy: '/api/clienten' // Assumes DELETE to /api/clienten/{id} is handled by backend
                 },
-                reader: {
-                    type: 'json',
-                    rootProperty: '', // Data is the root array
-                    successProperty: 'success' // Assuming backend sends success status
-                },
-                writer: {
-                    type: 'json',
-                    writeAllFields: true, // Send all fields
-                    encode: true,
-                    rootProperty: '' // Send data directly as JSON object
-                },
-                listeners: {
+                 url: '/api/clienten', // Default URL if api isn't specific enough
+                 actionMethods: { create : 'POST', read : 'GET', update : 'PUT', destroy: 'DELETE' },
+                reader: { type: 'json', rootProperty: '', successProperty: 'success' },
+                writer: { type: 'json', writeAllFields: true, encode: true, rootProperty: '' }, // Send as single object
+                appendId: true, // Important: Append ID to URL for update/destroy (e.g., /api/clienten/123)
+                listeners: { /* ... keep your exception listener ... */
                     exception: function(proxy, response, operation) {
-                        var errorMsg = 'Server Error';
+                         var errorMsg = 'Server Error (' + operation.action + ')';
                         try {
                             var responseData = Ext.decode(response.responseText);
-                            // Attempt to get error message from backend response
                             errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText);
-                        } catch (e) {
-                             errorMsg = 'Status: ' + response.status + ' - ' + response.statusText;
-                        }
-                        Ext.Msg.alert('Client Operation Failed', errorMsg + ' (' + operation.action + ')');
-                        // Reject changes on the record(s) involved in the failed operation
-                        if (operation.getRecords()) {
-                            Ext.each(operation.getRecords(), function(record) {
-                                if (record && record.reject) {
-                                    record.reject();
-                                }
-                            });
-                        }
-                         // Optionally reload the store to ensure consistency after error
-                        // Ext.getStore('clients').load();
+                        } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
+                        Ext.Msg.alert('Client Operation Failed', errorMsg);
+                        if (operation.getRecords()) { Ext.each(operation.getRecords(), function(record){ if (record && record.reject) record.reject(); }); }
                     }
-                }
+                 }
             }
         }),
 
@@ -95,23 +77,24 @@ Ext.application({
                 { name: 'naam', type: 'string' },
                 { name: 'beschrijving', type: 'string' },
                 { name: 'prijs', type: 'float' },
-                { name: 'prijs_type', type: 'string' } // e.g., 'per_uur', 'per_sessie'
+                { name: 'prijs_type', type: 'string' } // 'per_uur', 'per_sessie'
             ],
-             proxy: { // Corrected proxy
+             proxy: {
                 type: 'ajax',
-                url: '/api/behandelingen_types', // Base URL
+                api: { create: '/api/behandelingen_types', read: '/api/behandelingen_types', update: '/api/behandelingen_types', destroy: '/api/behandelingen_types' },
+                url: '/api/behandelingen_types',
                 actionMethods: { create : 'POST', read : 'GET', update : 'PUT', destroy: 'DELETE' },
                 reader: { type: 'json', rootProperty: '', successProperty: 'success' },
                 writer: { type: 'json', writeAllFields: true, encode: true, rootProperty: '' },
-                listeners: { exception: function(proxy, response, operation) { /* ... similar error handling ... */
-                     var errorMsg = 'Server Error';
-                        try {
-                            var responseData = Ext.decode(response.responseText);
-                             errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText);
-                        } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
-                        Ext.Msg.alert('Treatment Type Operation Failed', errorMsg + ' (' + operation.action + ')');
+                 appendId: true,
+                listeners: { /* ... keep your exception listener ... */
+                    exception: function(proxy, response, operation) {
+                         var errorMsg = 'Server Error (' + operation.action + ')';
+                        try { var responseData = Ext.decode(response.responseText); errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText); } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
+                        Ext.Msg.alert('Treatment Type Operation Failed', errorMsg);
                          if (operation.getRecords()) { Ext.each(operation.getRecords(), function(record){ if (record && record.reject) record.reject(); }); }
-                } }
+                    }
+                }
             }
         }),
 
@@ -120,39 +103,34 @@ Ext.application({
             idProperty: 'id',
             fields: [
                 { name: 'id', type: 'int', useNull: true },
-                { name: 'client_id', type: 'int', reference: 'Client' }, // Add reference for potential associations
+                { name: 'client_id', type: 'int', reference: 'Client' },
                 { name: 'behandeling_type_id', type: 'int', reference: 'TreatmentType' },
-                { name: 'datum', type: 'date', dateFormat: 'Y-m-d' }, // Ensure format matches backend
-                { name: 'aantal_uren', type: 'float', useNull: true }, // Can be null if price is per session
+                { name: 'datum', type: 'date', dateFormat: 'Y-m-d' },
+                { name: 'aantal_uren', type: 'float', useNull: true },
                 { name: 'gefactureerd', type: 'boolean', defaultValue: false },
                 { name: 'factuur_id', type: 'int', useNull: true, reference: 'Invoice'},
-                // Fields from related tables (read-only, populated by backend)
+                // Read-only fields from backend joins
                 { name: 'client_naam', type: 'string', mapping: 'clienten.naam', persist: false },
                 { name: 'behandeling_type_naam', type: 'string', mapping: 'behandelingen_types.naam', persist: false },
                 { name: 'prijs_type', type: 'string', mapping: 'behandelingen_types.prijs_type', persist: false},
                 { name: 'prijs', type: 'float', mapping: 'behandelingen_types.prijs', persist: false}
             ],
-            proxy: { // Corrected proxy
+            proxy: {
                 type: 'ajax',
-                url: '/api/behandelingen', // Base URL
+                api: { create: '/api/behandelingen', read: '/api/behandelingen', update: '/api/behandelingen', destroy: '/api/behandelingen' },
+                url: '/api/behandelingen',
                 actionMethods: { create : 'POST', read : 'GET', update : 'PUT', destroy: 'DELETE' },
-                reader: { type: 'json', rootProperty: '', successProperty: 'success', totalProperty: 'totalCount' }, // Added totalProperty for paging
-                writer: {
-                    type: 'json',
-                    writeAllFields: false, // Only send fields that are not persist: false
-                    dateFormat: 'Y-m-d', // Send date in correct format
-                    encode: true,
-                    rootProperty: ''
-                 },
-                listeners: { exception: function(proxy, response, operation) { /* ... similar error handling ... */
-                     var errorMsg = 'Server Error';
-                        try {
-                            var responseData = Ext.decode(response.responseText);
-                            errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText);
-                        } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
-                        Ext.Msg.alert('Treatment Operation Failed', errorMsg + ' (' + operation.action + ')');
+                reader: { type: 'json', rootProperty: '', successProperty: 'success', totalProperty: 'totalCount' }, // Need totalProperty for paging if reading list
+                writer: { type: 'json', writeAllFields: false, dateFormat: 'Y-m-d', encode: true, rootProperty: '' }, // Don't write persist:false fields
+                appendId: true,
+                listeners: { /* ... keep your exception listener ... */
+                    exception: function(proxy, response, operation) {
+                        var errorMsg = 'Server Error (' + operation.action + ')';
+                        try { var responseData = Ext.decode(response.responseText); errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText); } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
+                        Ext.Msg.alert('Treatment Operation Failed', errorMsg);
                          if (operation.getRecords()) { Ext.each(operation.getRecords(), function(record){ if (record && record.reject) record.reject(); }); }
-                 } }
+                    }
+                 }
             }
         }),
 
@@ -167,823 +145,864 @@ Ext.application({
                 { name: 'start_datum', type: 'date', dateFormat: 'Y-m-d' },
                 { name: 'eind_datum', type: 'date', dateFormat: 'Y-m-d' },
                 { name: 'totaal_bedrag', type: 'float' },
-                { name: 'betaald', type: 'boolean' },
-                 // Fields from related tables (read-only)
+                { name: 'betaald', type: 'boolean', defaultValue: false },
                 { name: 'client_naam', type: 'string', mapping: 'clienten.naam', persist: false }
             ],
-            proxy: { // Read-only proxy for invoices list, actions handled separately via Ajax requests
+            // Proxy primarily for reading the list. Other actions via custom Ajax calls.
+            proxy: {
                 type: 'ajax',
                 url: '/api/facturen',
                 actionMethods: { read : 'GET' },
-                reader: { type: 'json', rootProperty: '', successProperty: 'success', totalProperty: 'totalCount' }, // Added totalProperty
-                listeners: { exception: function(proxy, response, operation) { /* ... similar error handling ... */
-                    var errorMsg = 'Server Error';
-                        try {
-                            var responseData = Ext.decode(response.responseText);
-                            errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText);
-                        } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
-                        Ext.Msg.alert('Invoice Operation Failed', errorMsg + ' (' + operation.action + ')');
-                        // No records to reject on read typically
-                 } }
+                reader: { type: 'json', rootProperty: '', successProperty: 'success', totalProperty: 'totalCount' },
+                listeners: { /* ... keep your exception listener ... */
+                    exception: function(proxy, response, operation) {
+                        var errorMsg = 'Server Error (' + operation.action + ')';
+                         try { var responseData = Ext.decode(response.responseText); errorMsg = responseData.error || ('Status: ' + response.status + ' - ' + response.statusText); } catch (e) { errorMsg = 'Status: ' + response.status + ' - ' + response.statusText; }
+                        Ext.Msg.alert('Invoice Operation Failed', errorMsg);
+                    }
+                 }
             }
         })
     },
 
-    // Define Stores
+    // --- Define Stores ---
     stores: {
+        // Clients Store
         clients: Ext.create('Ext.data.Store', {
             model: 'BillingApp.model.Client',
+            storeId: 'clients', // Explicit storeId is good practice
             autoLoad: true,
-            remoteSort: false, // Example: Sort locally
+            remoteSort: false,
             sorters: [{ property: 'naam', direction: 'ASC' }]
+            // Uses model's proxy
         }),
+
+        // Treatment Types Store
         treatmentTypes: Ext.create('Ext.data.Store', {
             model: 'BillingApp.model.TreatmentType',
+            storeId: 'treatmentTypes',
             autoLoad: true,
-             remoteSort: false,
-             sorters: [{ property: 'naam', direction: 'ASC' }]
+            remoteSort: false,
+            sorters: [{ property: 'naam', direction: 'ASC' }]
+            // Uses model's proxy
         }),
+
+        // Treatments Store (Paged)
         treatments: Ext.create('Ext.data.Store', {
             model: 'BillingApp.model.Treatment',
+            storeId: 'treatments',
             autoLoad: true,
-            remoteSort: true, // Example: Sort remotely
-            remoteFilter: true, // Example: Filter remotely
+            remoteSort: true, // Server handles sorting
+            remoteFilter: true, // Server handles filtering
             sorters: [{ property: 'datum', direction: 'DESC' }],
-            groupField: 'client_naam', // Example grouping
+            groupField: 'client_naam', // Default grouping
             pageSize: 50, // Enable paging
-            // Proxy is defined on the model, store uses the model's proxy
+            // Override proxy for store-specific needs (like reading lists with paging)
             proxy: {
                 type: 'ajax',
-                url: '/api/behandelingen',
+                url: '/api/behandelingen', // Read URL
                  actionMethods: { read : 'GET' }, // Only need read for store loading
-                reader: { type: 'json', rootProperty: '', totalProperty: 'totalCount', successProperty: 'success' }
+                reader: {
+                    type: 'json',
+                    rootProperty: '', // Data is the root array
+                    totalProperty: 'totalCount', // Backend must supply this for paging
+                    successProperty: 'success'
+                },
+                 listeners: { /* ... Reuse exception listener if needed ... */ }
             }
         }),
+
+        // Invoices Store (Paged)
         invoices: Ext.create('Ext.data.Store', {
             model: 'BillingApp.model.Invoice',
+            storeId: 'invoices',
             autoLoad: true,
-            remoteSort: true, // Example: Sort remotely
-            remoteFilter: true, // Example: Filter remotely
+            remoteSort: true,
+            remoteFilter: true,
             sorters: [{ property: 'datum', direction: 'DESC' }],
-            pageSize: 50, // Enable paging
-             // Proxy is defined on the model, store uses the model's proxy
+            pageSize: 50,
+            // Override proxy for store-specific needs
             proxy: {
                 type: 'ajax',
-                url: '/api/facturen',
+                url: '/api/facturen', // Read URL
                  actionMethods: { read : 'GET' },
-                reader: { type: 'json', rootProperty: '', totalProperty: 'totalCount', successProperty: 'success' }
+                reader: {
+                    type: 'json',
+                    rootProperty: '',
+                    totalProperty: 'totalCount',
+                    successProperty: 'success'
+                },
+                 listeners: { /* ... Reuse exception listener if needed ... */ }
             }
         })
     },
 
+    // --- Define Controllers ---
+    // List controller names. Assumes BillingApp.controller.Main is defined below
+    // or in a separate file app/controller/Main.js
+    controllers: [
+        'Main'
+    ],
+
+    // --- Application Launch ---
     launch: function () {
-        // Hide loading mask
+        // Hide loading mask (assuming you have one in your index.html)
         var loadingMask = Ext.get('loading-mask');
         if (loadingMask) {
             loadingMask.fadeOut({ duration: 500, remove: true });
         }
 
-        // --- Define Controller ---
-        // Using a simple controller directly in the application for brevity
-        // In larger apps, this would be in a separate file (e.g., app/controller/Main.js)
-        Ext.define('BillingApp.controller.Main', {
-            extend: 'Ext.app.Controller',
-
-            refs: [ // Component references for easy access
-                { ref: 'clientGrid', selector: 'gridpanel[title=Clients]' },
-                { ref: 'treatmentGrid', selector: 'gridpanel[title=Treatments]' },
-                { ref: 'invoiceGrid', selector: 'gridpanel[title=Invoices]' },
-                { ref: 'treatmentTypeGrid', selector: 'gridpanel[title=Treatment Types]' },
-                { ref: 'clientForm', selector: 'window[title^=Client] form' }, // More robust selector
-                { ref: 'treatmentForm', selector: 'window[title^=Treatment] form' },
-                { ref: 'treatmentTypeForm', selector: 'window[title^=Treatment Type] form' },
-                { ref: 'generateInvoiceForm', selector: 'window[title=Generate Invoices] form' },
-                { ref: 'exportForm', selector: 'window[title^=Export Summary] form' },
-                { ref: 'hoursField', selector: 'window[title^=Treatment] numberfield[name=aantal_uren]'} // Specific reference
-            ],
-
-            init: function() {
-                this.control({ // Event listeners
-                    'gridpanel[title=Clients] button[text=Add Client]': { click: this.onAddClientClick },
-                    'gridpanel[title=Clients] button[text=Edit Client]': { click: this.onEditClientClick },
-                    'gridpanel[title=Clients] button[text=Delete Client]': { click: this.onDeleteClientClick },
-                    'gridpanel[title=Clients]': { itemdblclick: this.onEditClientClick }, // Edit on double click
-
-                    'gridpanel[title=Treatment Types] button[text=Add Type]': { click: this.onAddTreatmentTypeClick },
-                    'gridpanel[title=Treatment Types] button[text=Edit Type]': { click: this.onEditTreatmentTypeClick },
-                    'gridpanel[title=Treatment Types] button[text=Delete Type]': { click: this.onDeleteTreatmentTypeClick },
-                    'gridpanel[title=Treatment Types]': { itemdblclick: this.onEditTreatmentTypeClick },
-
-                    'gridpanel[title=Treatments] button[text=Add Treatment]': { click: this.onAddTreatmentClick },
-                    'gridpanel[title=Treatments] button[text=Edit Treatment]': { click: this.onEditTreatmentClick },
-                    'gridpanel[title=Treatments] button[text=Delete Treatment]': { click: this.onDeleteTreatmentClick },
-                    'gridpanel[title=Treatments]': { itemdblclick: this.onTreatmentItemDblClick }, // Custom handler for dblclick
-
-                     'gridpanel[title=Invoices] button[text=Generate Invoices]': { click: this.onGenerateInvoicesClick },
-                     'gridpanel[title=Invoices] button[text=View PDF]': { click: this.onViewInvoicePdfClick },
-                     'gridpanel[title=Invoices] button[text=Mark as Paid]': { click: this.onMarkPaidClick },
-                     'gridpanel[title=Invoices] button[text=Export Summary]': { click: this.onExportClick },
-                     'gridpanel[title=Invoices]': { itemdblclick: this.onViewInvoicePdfClick },
-
-                    // Window buttons
-                    'window[title^=Client] button[text=Save]': { click: this.onSaveClient },
-                    'window[title^=Client] button[text=Cancel]': { click: this.closeWindow },
-                    'window[title^=Treatment Type] button[text=Save]': { click: this.onSaveTreatmentType },
-                    'window[title^=Treatment Type] button[text=Cancel]': { click: this.closeWindow },
-                    'window[title^=Treatment] button[text=Save]': { click: this.onSaveTreatment },
-                    'window[title^=Treatment] button[text=Cancel]': { click: this.closeWindow },
-                    'window[title=Generate Invoices] button[text=Generate]': { click: this.onConfirmGenerateInvoices },
-                    'window[title=Generate Invoices] button[text=Cancel]': { click: this.closeWindow },
-                    'window[title^=Export Summary] button[text=Export]': { click: this.onConfirmExport },
-                    'window[title^=Export Summary] button[text=Cancel]': { click: this.closeWindow },
-
-                     // Form field listeners
-                     'window[title^=Treatment] combobox[name=behandeling_type_id]': { select: this.onTreatmentTypeSelect }
-                });
-            },
-
-            // --- Helper Functions ---
-            closeWindow: function(button) {
-                button.up('window').close();
-            },
-
-            getSelectedRecord: function(gridRefName) {
-                 var grid = this.getRef(gridRefName); // Use generated getter, e.g., getClientGrid()
-                 if (!grid) return null;
-                var selection = grid.getSelectionModel().getSelection();
-                return selection.length > 0 ? selection[0] : null;
-            },
-
-            // --- Event Handlers ---
-
-             onAddClientClick: function() {
-                 this.createClientWindow(); // No record passed for add
-             },
-
-            onEditClientClick: function(buttonOrGrid) { // Can be called by button or grid dblclick
-                 var record = this.getSelectedRecord('clientGrid');
-                 if (record) {
-                     this.createClientWindow(record);
-                 } else {
-                     Ext.Msg.alert('Selection Error', 'Please select a client to edit.');
-                 }
-             },
-
-             onDeleteClientClick: function() {
-                 var record = this.getSelectedRecord('clientGrid');
-                 if (record) {
-                     Ext.Msg.confirm('Confirm Delete', 'Are you sure you want to delete client "' + record.get('naam') + '"?', function(btn) {
-                         if (btn === 'yes') {
-                            var store = Ext.getStore('clients');
-                            store.remove(record); // Remove immediately from UI
-                            record.erase({ // Trigger DELETE request via model proxy
-                                success: function() {
-                                    // No need to remove again, already done
-                                    Ext.Msg.alert('Success', 'Client deleted.');
-                                    // store.commitChanges(); // Optional: commit removal if needed? Usually not for erase.
-                                },
-                                failure: function(rec, operation) {
-                                    // Error shown by proxy listener
-                                    // Add the record back to the store if deletion failed
-                                    store.insert(operation.request.getRecords()[0].index || 0, rec);
-                                    console.error('Failed to delete client', operation);
-                                }
-                            });
-                         }
-                     }, this);
-                 } else {
-                      Ext.Msg.alert('Selection Error', 'Please select a client to delete.');
-                 }
-             },
-
-            onSaveClient: function(button) {
-                var win = button.up('window');
-                var form = win.down('form').getForm(); // Use down() instead of ref for robustness here
-
-                if (form.isValid()) {
-                    var values = form.getValues();
-                    var store = Ext.getStore('clients');
-                    var record;
-
-                     var id = form.findField('id').getValue(); // Get ID from hidden field
-
-                     if (id) { // Editing existing
-                        record = store.getById(parseInt(id));
-                          if (record) {
-                              record.set(values); // Update record with form values
-                          } else {
-                              Ext.Msg.alert('Error', 'Record not found for update.');
-                              win.close();
-                              return;
-                          }
-                     } else { // Adding new
-                         // Remove null ID before creating
-                        record = Ext.create('BillingApp.model.Client', values);
-                          store.add(record); // Add tentatively
-                     }
-
-                    win.setLoading('Saving...');
-                    record.save({ // Uses model proxy
-                        callback: function(savedRecord, operation, success) { // Unified callback
-                             win.setLoading(false);
-                             if (success) {
-                                win.close();
-                                Ext.Msg.alert('Success', 'Client saved.');
-                                store.load(); // Reload store for consistency (optional, depends on needs)
-                             } else {
-                                 // Error already shown by proxy listener
-                                 // Reject changes on store if save failed
-                                 store.rejectChanges();
-                                 // If it was a new record add that failed, remove it from store
-                                 if (operation.action === 'create') {
-                                     store.remove(savedRecord);
-                                 }
-                                 console.error('Failed to save client', operation);
-                             }
-                        }
-                    });
-                }
-            },
-
-             // --- Treatment Type Handlers ---
-             onAddTreatmentTypeClick: function() {
-                this.createTreatmentTypeWindow();
-            },
-            onEditTreatmentTypeClick: function(buttonOrGrid) {
-                var record = this.getSelectedRecord('treatmentTypeGrid');
-                if (record) {
-                    this.createTreatmentTypeWindow(record);
-                } else {
-                    Ext.Msg.alert('Selection Error', 'Please select a treatment type to edit.');
-                }
-            },
-            onDeleteTreatmentTypeClick: function() {
-                var record = this.getSelectedRecord('treatmentTypeGrid');
-                if (record) {
-                    Ext.Msg.confirm('Confirm Delete', 'Delete type "' + record.get('naam') + '"? Check usage first.', function(btn) {
-                        if (btn === 'yes') {
-                           var store = Ext.getStore('treatmentTypes');
-                           store.remove(record);
-                            record.erase({
-                                success: function() { Ext.Msg.alert('Success', 'Treatment type deleted.'); },
-                                failure: function(rec, op) { store.insert(op.request.getRecords()[0].index || 0, rec); } // Add back on failure
-                            });
-                        }
-                    }, this);
-                } else {
-                     Ext.Msg.alert('Selection Error', 'Please select a treatment type to delete.');
-                }
-            },
-            onSaveTreatmentType: function(button) {
-                 var win = button.up('window');
-                 var form = win.down('form').getForm();
-                 if (form.isValid()) {
-                     var values = form.getValues();
-                     var store = Ext.getStore('treatmentTypes');
-                     var record;
-                     var id = form.findField('id').getValue();
-                     if (id) { // Editing
-                         record = store.getById(parseInt(id));
-                         if(record) record.set(values);
-                         else { Ext.Msg.alert('Error', 'Record not found.'); win.close(); return; }
-                     } else { // Adding
-                         record = Ext.create('BillingApp.model.TreatmentType', values);
-                         store.add(record);
-                     }
-                     win.setLoading('Saving...');
-                     record.save({
-                         callback: function(rec, op, success) {
-                              win.setLoading(false);
-                              if (success) {
-                                  win.close();
-                                  Ext.Msg.alert('Success', 'Treatment type saved.');
-                                  store.load();
-                              } else {
-                                   store.rejectChanges();
-                                   if(op.action === 'create') store.remove(rec);
-                              }
-                         }
-                     });
-                 }
-            },
-
-
-             // --- Treatment Handlers ---
-              onAddTreatmentClick: function() {
-                 this.createTreatmentWindow();
-             },
-
-            onEditTreatmentClick: function(buttonOrGrid) {
-                var record = this.getSelectedRecord('treatmentGrid');
-                if (record) {
-                    if(record.get('gefactureerd')) {
-                        Ext.Msg.alert('Edit Error', 'Cannot edit an invoiced treatment.');
-                        return;
-                    }
-                    this.createTreatmentWindow(record);
-                } else {
-                     Ext.Msg.alert('Selection Error', 'Please select a treatment to edit.');
-                }
-            },
-
-            onTreatmentItemDblClick: function(grid, record) { // Specific handler for dblclick
-                if (!record.get('gefactureerd')) { // Only edit if not invoiced
-                    this.createTreatmentWindow(record); // Call the creation method
-                 } else {
-                    Ext.Msg.alert('Edit Error', 'Cannot edit an invoiced treatment.');
-                 }
-            },
-
-            onDeleteTreatmentClick: function() {
-                var record = this.getSelectedRecord('treatmentGrid');
-                if (record) {
-                     if(record.get('gefactureerd')) {
-                        Ext.Msg.alert('Delete Error', 'Cannot delete an invoiced treatment.');
-                        return;
-                    }
-                    Ext.Msg.confirm('Confirm Delete', 'Delete this treatment record?', function(btn) {
-                        if (btn === 'yes') {
-                             var store = Ext.getStore('treatments');
-                             store.remove(record);
-                            record.erase({
-                                success: function() { Ext.Msg.alert('Success', 'Treatment deleted.'); },
-                                failure: function(rec, op) { store.insert(op.request.getRecords()[0].index || 0, rec); } // Add back
-                            });
-                        }
-                    }, this);
-                } else {
-                     Ext.Msg.alert('Selection Error', 'Please select a treatment to delete.');
-                }
-            },
-
-            onSaveTreatment: function(button) {
-                var win = button.up('window');
-                var form = win.down('form').getForm(); // Use direct down('form')
-
-                if (form.isValid()) {
-                    var values = form.getValues();
-                    var store = Ext.getStore('treatments');
-                    var record;
-
-                    // Ensure date is formatted correctly for backend
-                    values.datum = Ext.Date.format(form.findField('datum').getValue(), 'Y-m-d');
-
-                    // Handle blank hours based on type
-                    var typeStore = Ext.getStore('treatmentTypes');
-                    var typeRecord = typeStore.getById(parseInt(values.behandeling_type_id));
-                    var hoursField = form.findField('aantal_uren');
-                    if (typeRecord && typeRecord.get('prijs_type') !== 'per_uur') {
-                        values.aantal_uren = null; // Set hours to null if not hourly
-                    } else if (!hoursField.isDisabled() && (!values.aantal_uren || values.aantal_uren <= 0)) {
-                        // If hourly type is selected (field enabled) but hours are missing/invalid
-                        // Depending on strictness, either mark invalid or allow null
-                        // hoursField.markInvalid('Hours are required for this treatment type.'); return; // Strict
-                         values.aantal_uren = null; // Allow null if backend handles it, or default value needed
-                         // Or set a default if applicable: values.aantal_uren = 1;
-                    }
-
-                     var id = form.findField('id').getValue();
-                     if (id) { // Editing
-                        record = store.getById(parseInt(id));
-                          if (record) {
-                              record.set(values);
-                          } else {
-                               Ext.Msg.alert('Error', 'Record not found for update.'); win.close(); return;
-                          }
-                     } else { // Adding
-                         record = Ext.create('BillingApp.model.Treatment', values);
-                          store.add(record);
-                     }
-
-                    win.setLoading('Saving...');
-                    record.save({
-                        callback: function(rec, op, success) {
-                            win.setLoading(false);
-                             if (success) {
-                                win.close();
-                                Ext.Msg.alert('Success', 'Treatment saved.');
-                                store.load(); // Reload to get updated calculated fields/joins
-                             } else {
-                                 store.rejectChanges();
-                                 if(op.action === 'create') store.remove(rec);
-                             }
-                        }
-                    });
-                }
-            },
-
-            // Handler in form controller or main app controller
-            onTreatmentTypeSelect: function(combo, record) {
-                 // Get the form the combo is in
-                 var form = combo.up('form');
-                 // Find the hours field within that form
-                 var hoursField = form.down('numberfield[name=aantal_uren]'); // Use down() with selector
-
-                 if (hoursField) { // Check if field exists
-                     if (record && record.get('prijs_type') === 'per_uur') {
-                         hoursField.enable();
-                         hoursField.allowBlank = false; // Make required if hourly
-                         hoursField.validate(); // Re-validate
-                     } else {
-                         hoursField.disable();
-                         hoursField.setValue(null); // Clear value if disabled
-                         hoursField.allowBlank = true; // Not required
-                         hoursField.clearInvalid(); // Clear potential validation errors
-                     }
-                 } else {
-                    console.warn("Could not find 'aantal_uren' field in the treatment form.");
-                 }
-            },
-
-             // --- Invoice Handlers ---
-            onGenerateInvoicesClick: function() {
-                this.createGenerateInvoiceWindow();
-            },
-
-             onConfirmGenerateInvoices: function(button) {
-                 var win = button.up('window');
-                 var form = win.down('form').getForm();
-                 if (form.isValid()) {
-                     var values = form.getValues();
-                     var startDate = Ext.Date.format(form.findField('start_datum').getValue(), 'Y-m-d');
-                     var endDate = Ext.Date.format(form.findField('eind_datum').getValue(), 'Y-m-d');
-
-                     win.setLoading('Generating Invoices...');
-                     Ext.Ajax.request({
-                         url: '/api/facturen/generate',
-                         method: 'POST',
-                         jsonData: { start_datum: startDate, eind_datum: endDate },
-                         success: function(response) {
-                             win.setLoading(false);
-                             var result = Ext.decode(response.responseText);
-                             if (result.success) {
-                                 win.close();
-                                 Ext.Msg.alert('Success', result.aantal_facturen + ' invoice(s) generated.');
-                                 Ext.getStore('invoices').load();
-                                 Ext.getStore('treatments').load();
-                             } else {
-                                 Ext.Msg.alert('Generation Failed', result.error || 'Unknown error');
-                             }
-                         },
-                         failure: function(response) {
-                             win.setLoading(false);
-                             var errorMsg = 'Server Error';
-                              try { errorMsg = Ext.decode(response.responseText).error || errorMsg; } catch(e){}
-                             Ext.Msg.alert('Error', 'Invoice generation failed: ' + errorMsg);
-                         }
-                     });
-                 }
-             },
-
-             onViewInvoicePdfClick: function(buttonOrGrid) {
-                 var record = this.getSelectedRecord('invoiceGrid');
-                 if (record) {
-                     var pdfUrl = '/api/facturen/' + record.getId() + '/pdf';
-                     window.open(pdfUrl, '_blank');
-                 } else {
-                     Ext.Msg.alert('Selection Error', 'Please select an invoice to view.');
-                 }
-             },
-
-             onMarkPaidClick: function() {
-                 var record = this.getSelectedRecord('invoiceGrid');
-                 if (record) {
-                      if (record.get('betaald')) {
-                          Ext.Msg.alert('Info', 'This invoice is already marked as paid.');
-                          return;
-                      }
-
-                     Ext.Msg.confirm('Confirm Payment', 'Mark invoice ' + record.get('factuur_nummer') + ' as paid?', function(btn) {
-                         if (btn === 'yes') {
-                              var grid = this.getInvoiceGrid(); // Use ref getter
-                              if(grid) grid.setLoading('Updating status...');
-                             Ext.Ajax.request({
-                                 url: '/api/facturen/' + record.getId() + '/betaald',
-                                 method: 'PUT',
-                                 success: function(response) {
-                                     if(grid) grid.setLoading(false);
-                                     // No need to decode response if backend is just confirming with 200 OK
-                                      record.set('betaald', true); // Update client-side record
-                                      record.commit(); // Commit the change in the store
-                                     Ext.Msg.alert('Success', 'Invoice marked as paid.');
-                                     // Optional: Refresh row styling if needed
-                                     // grid.getView().refreshNode(record);
-                                 },
-                                 failure: function(response) {
-                                      if(grid) grid.setLoading(false);
-                                      var errorMsg = 'Server Error';
-                                      try { errorMsg = Ext.decode(response.responseText).error || errorMsg; } catch(e){}
-                                     Ext.Msg.alert('Error', 'Failed to mark invoice as paid: ' + errorMsg);
-                                 }
-                             });
-                         }
-                     }, this);
-                 } else {
-                     Ext.Msg.alert('Selection Error', 'Please select an invoice to mark as paid.');
-                 }
-             },
-
-            onExportClick: function() {
-                this.createExportWindow(); // Show the date range window first
-            },
-
-             onConfirmExport: function(button) { // Renamed handler for export confirm button
-                 var win = button.up('window');
-                 var form = win.down('form').getForm();
-                 if (form.isValid()) {
-                     var values = form.getValues();
-                     var startDate = Ext.Date.format(form.findField('start_datum').getValue(), 'Y-m-d');
-                     var endDate = Ext.Date.format(form.findField('eind_datum').getValue(), 'Y-m-d');
-
-                      // Construct URL with query parameters
-                     var exportUrl = '/api/export/excel?start_datum=' + encodeURIComponent(startDate) + '&eind_datum=' + encodeURIComponent(endDate);
-
-                     // Trigger download by navigating the main window (or a hidden iframe)
-                     // Using window.location is simplest for GET requests that trigger downloads
-                     window.location.href = exportUrl;
-
-
-                     // Alternative using hidden iframe (might be slightly cleaner)
-                     /*
-                     var iframe = Ext.getBody().createChild({
-                        tag: 'iframe',
-                        cls: 'x-hidden', // Hide it
-                        src: exportUrl
-                     });
-                     // Remove iframe after a delay
-                     Ext.defer(function() {
-                        if (iframe) { iframe.remove(); }
-                     }, 5000); // Remove after 5 seconds
-                     */
-
-                     win.close(); // Close the date selection window
-                 }
-            },
-
-
-            // --- Window Creation Functions (moved to controller) ---
-
-            createClientWindow: function(record) {
-                var isEdit = !!record; // Simplified check
-                var win = Ext.create('Ext.window.Window', {
-                     title: isEdit ? 'Edit Client: ' + record.get('naam') : 'Add Client',
-                     modal: true,
-                     width: 500, minWidth: 300, layout: 'fit',
-                     //plugins: 'responsive',
-                     // responsiveFormulas: { small: 'width < 550', large: 'width >= 550' },
-                     // responsiveConfig: { small: { width: '95%' }, large: { width: 500 } },
-                     items: [{
-                         xtype: 'form',
-                         // reference: 'clientForm', // Ref can be used but direct selection is fine too
-                         bodyPadding: 15,
-                         defaults: { anchor: '100%', allowBlank: false, labelAlign: 'top' },
-                         items: [
-                             { xtype: 'hiddenfield', name: 'id' }, // Let form loadRecord populate it
-                             { xtype: 'textfield', name: 'naam', fieldLabel: 'Name' },
-                             { xtype: 'textfield', name: 'adres', fieldLabel: 'Address' },
-                             { xtype: 'textfield', name: 'postcode', fieldLabel: 'Postcode' },
-                             { xtype: 'textfield', name: 'plaats', fieldLabel: 'City' },
-                             { xtype: 'textfield', name: 'telefoon', fieldLabel: 'Phone', allowBlank: true },
-                             { xtype: 'textfield', name: 'email', fieldLabel: 'Email', vtype: 'email', allowBlank: true }
-                         ],
-                         buttons: [ // Buttons managed by controller listeners now
-                            { text: 'Save', formBind: true, ui: 'action', action: 'saveClient' }, // Add action for listener
-                            { text: 'Cancel', action: 'cancelClient' }
-                        ]
-                     }]
-                 });
-                 if (isEdit) {
-                     win.down('form').loadRecord(record); // Load data if editing
-                 }
-                 win.show();
-             },
-
-             createTreatmentTypeWindow: function(record) {
-                 var isEdit = !!record;
-                 var win = Ext.create('Ext.window.Window', {
-                     title: isEdit ? 'Edit Treatment Type: ' + record.get('naam') : 'Add Treatment Type',
-                     modal: true, width: 500, minWidth: 300, layout: 'fit',
-                     //plugins: 'responsive', responsiveConfig: { 'width < 550': { width: '95%' }, 'width >= 550': { width: 500 } },
-                     items: [{
-                         xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top' },
-                         items: [
-                             { xtype: 'hiddenfield', name: 'id' },
-                             { xtype: 'textfield', name: 'naam', fieldLabel: 'Name', allowBlank: false },
-                             { xtype: 'textareafield', name: 'beschrijving', fieldLabel: 'Description', allowBlank: true },
-                             { xtype: 'numberfield', name: 'prijs', fieldLabel: 'Price (€)', allowBlank: false, minValue: 0 },
-                             { xtype: 'combobox', name: 'prijs_type', fieldLabel: 'Price Type', store: ['per_uur', 'per_sessie'], allowBlank: false, forceSelection: true, value: 'per_sessie' } // Default value
-                         ],
-                          buttons: [
-                             { text: 'Save', formBind: true, ui: 'action', action: 'saveTreatmentType' },
-                             { text: 'Cancel', action: 'cancelTreatmentType' }
-                         ]
-                     }]
-                 });
-                  if (isEdit) { win.down('form').loadRecord(record); }
-                  win.show();
-             },
-
-             createTreatmentWindow: function(record) {
-                 var isEdit = !!record;
-                 var win = Ext.create('Ext.window.Window', {
-                     title: isEdit ? 'Edit Treatment' : 'Add Treatment',
-                     modal: true, width: 550, minWidth: 320, layout: 'fit',
-                     //plugins: 'responsive', responsiveConfig: { 'width < 600': { width: '95%' }, 'width >= 600': { width: 550 } },
-                     items: [{
-                         xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top' },
-                         items: [
-                             { xtype: 'hiddenfield', name: 'id' },
-                             { xtype: 'combobox', name: 'client_id', fieldLabel: 'Client', store: 'clients', displayField: 'naam', valueField: 'id', allowBlank: false, forceSelection: true, queryMode: 'local' },
-                             { xtype: 'combobox', name: 'behandeling_type_id', fieldLabel: 'Treatment Type', store: 'treatmentTypes', displayField: 'naam', valueField: 'id', allowBlank: false, forceSelection: true, queryMode: 'local' }, // Listener attached via controller
-                             { xtype: 'datefield', name: 'datum', fieldLabel: 'Date', format: 'Y-m-d', allowBlank: false, value: new Date() }, // Default value
-                             { xtype: 'numberfield', name: 'aantal_uren', fieldLabel: 'Hours', allowBlank: true, minValue: 0.1, step: 0.25, disabled: true } // Initially disabled, enabled by listener
-                         ],
-                          buttons: [
-                             { text: 'Save', formBind: true, ui: 'action', action: 'saveTreatment' },
-                             { text: 'Cancel', action: 'cancelTreatment' }
-                         ]
-                     }]
-                 });
-                  if (isEdit) {
-                    win.down('form').loadRecord(record);
-                    // Manually trigger select listener logic after loading record
-                    var typeCombo = win.down('combobox[name=behandeling_type_id]');
-                    var typeStore = Ext.getStore('treatmentTypes');
-                    var typeRecord = typeStore.getById(record.get('behandeling_type_id'));
-                    this.onTreatmentTypeSelect(typeCombo, typeRecord); // Call handler directly
-                 }
-                  win.show();
-             },
-
-              createGenerateInvoiceWindow: function() {
-                 Ext.create('Ext.window.Window', {
-                     title: 'Generate Invoices', modal: true, width: 400, layout: 'fit',
-                     //plugins: 'responsive', responsiveConfig: { 'width < 450': { width: '95%' }, 'width >= 450': { width: 400 } },
-                     items: [{
-                         xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top', allowBlank: false },
-                         items: [
-                             { xtype: 'datefield', name: 'start_datum', fieldLabel: 'Start Date (Inclusive)', format: 'Y-m-d', value: Ext.Date.getFirstDateOfMonth(new Date()) },
-                             { xtype: 'datefield', name: 'eind_datum', fieldLabel: 'End Date (Inclusive)', format: 'Y-m-d', value: Ext.Date.getLastDateOfMonth(new Date()) }
-                         ],
-                         buttons: [
-                             { text: 'Generate', formBind: true, ui: 'action', action: 'confirmGenerate' }, // Action for listener
-                             { text: 'Cancel', action: 'cancelGenerate' }
-                         ]
-                     }]
-                 }).show();
-             },
-
-             createExportWindow: function() { // Changed name slightly
-                Ext.create('Ext.window.Window', {
-                     title: 'Export Summary to Excel', modal: true, width: 400, layout: 'fit',
-                     //plugins: 'responsive', responsiveConfig: { 'width < 450': { width: '95%' }, 'width >= 450': { width: 400 } },
-                     items: [{
-                         xtype: 'form', bodyPadding: 15, defaults: { anchor: '100%', labelAlign: 'top', allowBlank: false },
-                         items: [
-                             { xtype: 'datefield', name: 'start_datum', fieldLabel: 'Start Date (Inclusive)', format: 'Y-m-d', value: Ext.Date.getFirstDateOfMonth(new Date()) },
-                             { xtype: 'datefield', name: 'eind_datum', fieldLabel: 'End Date (Inclusive)', format: 'Y-m-d', value: Ext.Date.getLastDateOfMonth(new Date()) }
-                         ],
-                         buttons: [
-                             { text: 'Export', formBind: true, ui: 'action', action: 'confirmExport' }, // Action for listener
-                             { text: 'Cancel', action: 'cancelExport' }
-                         ]
-                     }]
-                 }).show();
-             }
-
-
-        }); // End Controller Definition
-
-
-        // --- Main Viewport ---
+        // --- Create the Main User Interface ---
         Ext.create('Ext.container.Viewport', {
             layout: 'fit',
             items: [{
                 xtype: 'tabpanel',
-                plugins: 'responsive', // Add responsive plugin to tabpanel too
-                //responsiveConfig: {
-                //    'width < 768': { tabPosition: 'bottom' },
-                //    'width >= 768': { tabPosition: 'top' }
-                //},
-                items: [ // These grid definitions could be moved to separate view files
-                    { // Clients Grid Panel Definition
-                         title: 'Clients',
+                itemId: 'mainTabs', // Add an itemId for easier reference if needed
+                activeTab: 0,       // Start on the first tab
+                items: [
+                    // Client Grid Panel
+                    {
+                        xtype: 'gridpanel',
+                        itemId: 'clientGrid', // Use itemId for controller ref
+                        title: 'Clients',
+                        store: 'clients', // ** LINK GRID TO STORE **
+                        columns: [
+                            { text: 'ID', dataIndex: 'id', width: 50 },
+                            { text: 'Name', dataIndex: 'naam', flex: 1 },
+                            { text: 'Address', dataIndex: 'adres', flex: 1.5 },
+                            { text: 'Postcode', dataIndex: 'postcode', width: 80 },
+                            { text: 'City', dataIndex: 'plaats', flex: 1 },
+                            { text: 'Phone', dataIndex: 'telefoon', flex: 1 },
+                            { text: 'Email', dataIndex: 'email', flex: 1.5 }
+                        ],
+                        dockedItems: [{
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            items: [
+                                { text: 'Add Client', action: 'addClient' }, // Use action for controller
+                                { text: 'Edit Client', action: 'editClient', bind: { disabled: '{!clientGrid.selection}'} }, // Disable if nothing selected
+                                { text: 'Delete Client', action: 'deleteClient', bind: { disabled: '{!clientGrid.selection}'} }
+                            ]
+                        }]
+                    },
+                    // Treatment Types Grid Panel
+                    {
+                        xtype: 'gridpanel',
+                        itemId: 'treatmentTypeGrid',
+                        title: 'Treatment Types',
+                        store: 'treatmentTypes', // ** LINK GRID TO STORE **
+                        columns: [
+                             { text: 'ID', dataIndex: 'id', width: 50 },
+                             { text: 'Name', dataIndex: 'naam', flex: 1 },
+                             { text: 'Description', dataIndex: 'beschrijving', flex: 2 },
+                             { text: 'Price', dataIndex: 'prijs', xtype: 'numbercolumn', format:'0.00', align: 'right', width: 90 },
+                             { text: 'Price Type', dataIndex: 'prijs_type', width: 100 } // e.g., 'per_uur'
+                        ],
+                        dockedItems: [{
+                            xtype: 'toolbar', dock: 'top',
+                            items: [
+                                { text: 'Add Type', action: 'addType' },
+                                { text: 'Edit Type', action: 'editType', bind: { disabled: '{!treatmentTypeGrid.selection}'} },
+                                { text: 'Delete Type', action: 'deleteType', bind: { disabled: '{!treatmentTypeGrid.selection}'} }
+                            ]
+                        }]
+                    },
+                    // Treatments Grid Panel (Paged, Grouped, Filtered)
+                    {
+                        xtype: 'gridpanel',
+                        itemId: 'treatmentGrid',
+                        title: 'Treatments',
+                        store: 'treatments', // ** LINK GRID TO STORE **
+                        plugins: [ 'gridfilters' ], // Enable filters plugin
+                        features: [{ ftype: 'grouping', groupHeaderTpl: '{name} ({rows.length})' }], // Enable grouping
+                        columns: [
+                            // Grouping column often hidden if groupField is set on store
+                            // { text: 'Client', dataIndex: 'client_naam', filter: 'string', hidden: true }, // Example filter
+                            { text: 'ID', dataIndex: 'id', width: 50 },
+                            { text: 'Client', dataIndex: 'client_naam', filter: 'string', flex: 1.5 }, // Added filter
+                            { text: 'Type', dataIndex: 'behandeling_type_naam', filter: 'string', flex: 1.5 },
+                            { text: 'Date', dataIndex: 'datum', xtype: 'datecolumn', format: 'Y-m-d', filter: 'date', width: 110 }, // Added filter
+                            { text: 'Hours', dataIndex: 'aantal_uren', xtype: 'numbercolumn', format:'0.00', align: 'right', width: 70, filter: 'number'},
+                            { text: 'Invoiced', dataIndex: 'gefactureerd', xtype: 'booleancolumn', trueText: 'Yes', falseText: 'No', filter: 'boolean', width: 90 } // Added filter
+                           // { text: 'Invoice ID', dataIndex: 'factuur_id', width: 90, filter: 'number' } // Optional
+                        ],
+                         dockedItems: [{
+                            xtype: 'toolbar', dock: 'top',
+                            items: [
+                                { text: 'Add Treatment', action: 'addTreatment' },
+                                { text: 'Edit Treatment', action: 'editTreatment', bind: { disabled: '{!treatmentGrid.selection}'} },
+                                { text: 'Delete Treatment', action: 'deleteTreatment', bind: { disabled: '{!treatmentGrid.selection}'} },
+                                '->', // Right align following items
+                                { text: 'Clear Grouping', handler: function(btn){ btn.up('grid').getStore().clearGrouping(); } }
+                            ]
+                         }],
+                         // Paging Toolbar
+                         bbar: {
+                            xtype: 'pagingtoolbar',
+                            store: 'treatments', // ** LINK PAGING TOOLBAR TO STORE **
+                            displayInfo: true,
+                            displayMsg: 'Treatments {0} - {1} of {2}',
+                            emptyMsg: "No treatments found"
+                        }
+                    },
+                    // Invoices Grid Panel (Paged, Filtered)
+                    {
                          xtype: 'gridpanel',
-                         store: 'clients', // Reference store by ID
-                         plugins: ['responsive'], // Use responsive plugin
-                         //responsiveConfig: {
-                        //     'width < 600': { hideHeaders: true },
-                        //     'width >= 600': { hideHeaders: false }
-                        // },
+                         itemId: 'invoiceGrid',
+                         title: 'Invoices',
+                         store: 'invoices', // ** LINK GRID TO STORE **
+                         plugins: [ 'gridfilters' ],
                          columns: [
-                             { text: 'Name', dataIndex: 'naam', flex: 2, minWidth: 150 },
-                             { text: 'Address', dataIndex: 'adres', flex: 3, hidden: true, responsiveConfig: { 'width >= 768': { hidden: false } } },
-                             { text: 'Postcode', dataIndex: 'postcode', flex: 1, hidden: true, responsiveConfig: { 'width >= 768': { hidden: false } } },
-                             { text: 'City', dataIndex: 'plaats', flex: 1 },
-                             { text: 'Phone', dataIndex: 'telefoon', flex: 1, hidden: true, responsiveConfig: { 'width >= 992': { hidden: false } } },
-                             { text: 'Email', dataIndex: 'email', flex: 2, hidden: true, responsiveConfig: { 'width >= 992': { hidden: false } } }
+                             { text: 'ID', dataIndex: 'id', width: 50 },
+                             { text: 'Invoice #', dataIndex: 'factuur_nummer', filter: 'string', width: 120 },
+                             { text: 'Client', dataIndex: 'client_naam', filter: 'string', flex: 1.5 },
+                             { text: 'Date', dataIndex: 'datum', xtype: 'datecolumn', format: 'Y-m-d', filter: 'date', width: 110 },
+                             { text: 'Period Start', dataIndex: 'start_datum', xtype: 'datecolumn', format: 'Y-m-d', filter: 'date', width: 110 },
+                             { text: 'Period End', dataIndex: 'eind_datum', xtype: 'datecolumn', format: 'Y-m-d', filter: 'date', width: 110 },
+                             { text: 'Total Amount', dataIndex: 'totaal_bedrag', xtype: 'numbercolumn', format:'€ 0.00', align: 'right', filter:'number', width: 120 },
+                             { text: 'Paid', dataIndex: 'betaald', xtype: 'booleancolumn', trueText: 'Yes', falseText: 'No', filter: 'boolean', width: 70 }
                          ],
                          dockedItems: [{
-                             xtype: 'toolbar', dock: 'top',
-                             items: [ // Buttons handled by controller
-                                 { text: 'Add Client', iconCls: 'x-fa fa-plus' },
-                                 { text: 'Edit Client', iconCls: 'x-fa fa-pencil', bind: { disabled: '{!clientGrid.selection}'} },
-                                 { text: 'Delete Client', iconCls: 'x-fa fa-trash', bind: { disabled: '{!clientGrid.selection}'} }
-                             ]
+                            xtype: 'toolbar', dock: 'top',
+                            items: [
+                                { text: 'Generate Invoices', action: 'generateInvoices' },
+                                { text: 'View PDF', action: 'viewPdf', bind: { disabled: '{!invoiceGrid.selection}'} },
+                                { text: 'Mark as Paid/Unpaid', action: 'togglePaid', bind: { disabled: '{!invoiceGrid.selection}'} },
+                                { text: 'Export Summary', action: 'exportSummary' }
+                            ]
                          }],
-                          reference: 'clientGrid', // Reference for binding/controller
-                          selModel: 'rowmodel' // Allow single row selection
-                    },
-                    { // Treatments Grid Panel Definition
-                        title: 'Treatments',
-                        xtype: 'gridpanel',
-                        store: 'treatments',
-                        plugins: ['responsive', 'gridfilters'], // Add filtering plugin instance
-                        features: [{ftype:'grouping', groupHeaderTpl: 'Client: {name} ({rows.length})'}], // Grouping
-                        columns: [ // Simplified column definitions (renderer etc. still useful)
-                            { text: 'Date', dataIndex: 'datum', xtype: 'datecolumn', format: 'Y-m-d', width: 120, filter: { type: 'date'} },
-                            { text: 'Client', dataIndex: 'client_naam', flex: 2, filter: { type: 'string'} },
-                            { text: 'Treatment', dataIndex: 'behandeling_type_naam', flex: 3, filter: { type: 'list', options: [] } }, // Filter options could be loaded dynamically
-                            { text: 'Hours', dataIndex: 'aantal_uren', width: 80, align: 'right', renderer: function(v, m, rec){ return rec.get('prijs_type') === 'per_uur' ? Ext.util.Format.number(v,'0.00') : '-'; }, filter: { type: 'numeric'} },
-                            { text: 'Price Type', dataIndex: 'prijs_type', width: 100, filter: { type: 'list', options: ['per_uur', 'per_sessie']}},
-                            { text: 'Price', dataIndex: 'prijs', xtype: 'numbercolumn', format: '€0.00', width: 90, align: 'right', filter: { type: 'numeric'}},
-                            { text: 'Amount', xtype: 'numbercolumn', format: '€0.00', width: 100, align: 'right', filter: { type: 'numeric'}, renderer: function(v, m, rec) { var p=rec.get('prijs')||0; var h=rec.get('aantal_uren')||0; return Ext.util.Format.currency(rec.get('prijs_type')==='per_uur'?(p*h):p,'€',2); }},
-                            { text: 'Invoiced', dataIndex: 'gefactureerd', xtype: 'booleancolumn', trueText: 'Yes', falseText: 'No', width: 90, filter: { type: 'boolean'} },
-                            { text: 'Invoice ID', dataIndex: 'factuur_id', width: 100, filter: { type: 'numeric'} }
-                        ],
-                        dockedItems: [
-                            { xtype: 'toolbar', dock: 'top', items: [
-                                { text: 'Add Treatment', iconCls: 'x-fa fa-plus' },
-                                { text: 'Edit Treatment', iconCls: 'x-fa fa-pencil', bind: { disabled: '{!treatmentGrid.selection || treatmentGrid.selection.gefactureerd}'} },
-                                { text: 'Delete Treatment', iconCls: 'x-fa fa-trash', bind: { disabled: '{!treatmentGrid.selection || treatmentGrid.selection.gefactureerd}'} }
-                            ]},
-                            { xtype: 'pagingtoolbar', store: 'treatments', dock: 'bottom', displayInfo: true }
-                        ],
-                          reference: 'treatmentGrid',
-                          selModel: 'rowmodel'
-                    },
-                     { // Invoices Grid Panel Definition
-                         title: 'Invoices',
-                         xtype: 'gridpanel',
-                         store: 'invoices',
-                         plugins: ['responsive', 'gridfilters'],
-                         columns: [
-                             { text: 'Invoice #', dataIndex: 'factuur_nummer', width: 150, filter: { type: 'string'} },
-                             { text: 'Date', dataIndex: 'datum', xtype: 'datecolumn', format: 'Y-m-d', width: 120, filter: { type: 'date'} },
-                             { text: 'Client', dataIndex: 'client_naam', flex: 2, filter: { type: 'string'} },
-                             { text: 'Period Start', dataIndex: 'start_datum', xtype: 'datecolumn', format: 'Y-m-d', width: 120, hidden: true, responsiveConfig: { 'width >= 768': { hidden: false } }, filter: { type: 'date'} },
-                             { text: 'Period End', dataIndex: 'eind_datum', xtype: 'datecolumn', format: 'Y-m-d', width: 120, hidden: true, responsiveConfig: { 'width >= 768': { hidden: false } }, filter: { type: 'date'} },
-                             { text: 'Total Amount', dataIndex: 'totaal_bedrag', xtype: 'numbercolumn', format: '€0.00', width: 130, align: 'right', filter: { type: 'numeric'} },
-                             { text: 'Paid', dataIndex: 'betaald', xtype: 'booleancolumn', trueText: 'Yes', falseText: 'No', width: 80, filter: { type: 'boolean'} }
-                         ],
-                         dockedItems: [
-                             { xtype: 'toolbar', dock: 'top', items: [
-                                 { text: 'Generate Invoices', iconCls: 'x-fa fa-cogs' },
-                                 { text: 'View PDF', iconCls: 'x-fa fa-file-pdf-o', bind: { disabled: '{!invoiceGrid.selection}'} },
-                                 { text: 'Mark as Paid', iconCls: 'x-fa fa-check-square-o', bind: { disabled: '{!invoiceGrid.selection || invoiceGrid.selection.betaald}'} },
-                                 '->',
-                                 { text: 'Export Summary', iconCls: 'x-fa fa-file-excel-o' }
-                             ]},
-                              { xtype: 'pagingtoolbar', store: 'invoices', dock: 'bottom', displayInfo: true }
-                         ],
-                         reference: 'invoiceGrid',
-                          selModel: 'rowmodel'
-                     },
-                     { // Treatment Types Grid Panel Definition
-                        title: 'Treatment Types',
-                        xtype: 'gridpanel',
-                        store: 'treatmentTypes',
-                        plugins: ['responsive'],
-                        columns: [
-                            { text: 'Name', dataIndex: 'naam', flex: 2 },
-                            { text: 'Description', dataIndex: 'beschrijving', flex: 3, hidden: true, responsiveConfig: { 'width >= 768': { hidden: false } } },
-                            { text: 'Price', dataIndex: 'prijs', xtype: 'numbercolumn', format: '€0.00', width: 100, align: 'right' },
-                            { text: 'Price Type', dataIndex: 'prijs_type', width: 120 }
-                        ],
-                        dockedItems: [{ xtype: 'toolbar', dock: 'top', items: [
-                            { text: 'Add Type', iconCls: 'x-fa fa-plus' },
-                            { text: 'Edit Type', iconCls: 'x-fa fa-pencil', bind: { disabled: '{!treatmentTypeGrid.selection}'} },
-                            { text: 'Delete Type', iconCls: 'x-fa fa-trash', bind: { disabled: '{!treatmentTypeGrid.selection}'} }
-                        ]}],
-                          reference: 'treatmentTypeGrid',
-                          selModel: 'rowmodel'
+                         // Paging Toolbar
+                         bbar: {
+                            xtype: 'pagingtoolbar',
+                            store: 'invoices', // ** LINK PAGING TOOLBAR TO STORE **
+                            displayInfo: true,
+                            displayMsg: 'Invoices {0} - {1} of {2}',
+                            emptyMsg: "No invoices found"
+                        }
                     }
                 ]
             }]
         });
+    } // End Launch
+}); // End Application
 
-    } // End Launch function
 
-}); // End Application definition
+// --- Define Controller (Usually in app/controller/Main.js) ---
+Ext.define('BillingApp.controller.Main', {
+    extend: 'Ext.app.Controller',
 
-// Define a basic Application class (required by extend: 'Ext.app.Application')
-// This was defined earlier, ensure it's not duplicated.
-/*
-Ext.define('BillingApp.Application', {
-    extend: 'Ext.app.Application',
-    name: 'BillingApp',
-    controllers: [ // Load the controller
-        'Main'
-    ]
-});
-*/
+    // --- References to Components ---
+    refs: [
+        // Use itemId for better reliability
+        { ref: 'clientGrid', selector: '#clientGrid' },
+        { ref: 'treatmentGrid', selector: '#treatmentGrid' },
+        { ref: 'invoiceGrid', selector: '#invoiceGrid' },
+        { ref: 'treatmentTypeGrid', selector: '#treatmentTypeGrid' },
+        // Window refs are less common unless you need persistent access
+        // Form refs often target the form within the active window
+        { ref: 'clientForm', selector: 'window[itemId=clientWindow] form' },
+        { ref: 'treatmentForm', selector: 'window[itemId=treatmentWindow] form' },
+        { ref: 'treatmentTypeForm', selector: 'window[itemId=treatmentTypeWindow] form' },
+        { ref: 'generateInvoiceForm', selector: 'window[itemId=generateInvoiceWindow] form' },
+        { ref: 'exportForm', selector: 'window[itemId=exportWindow] form' }
+        // Ref for hours field can be tricky, better to find via form reference:
+        // { ref: 'hoursField', selector: 'window[itemId=treatmentWindow] numberfield[name=aantal_uren]'}
+    ],
+
+    // --- Initialize Controller and Set Listeners ---
+    init: function() {
+        this.control({
+            // Grid Buttons (using action property)
+            '#clientGrid button[action=addClient]': { click: this.onAddClientClick },
+            '#clientGrid button[action=editClient]': { click: this.onEditClientClick },
+            '#clientGrid button[action=deleteClient]': { click: this.onDeleteClientClick },
+            '#clientGrid': { itemdblclick: this.onEditClientClick }, // Edit on double click
+
+            '#treatmentTypeGrid button[action=addType]': { click: this.onAddTreatmentTypeClick },
+            '#treatmentTypeGrid button[action=editType]': { click: this.onEditTreatmentTypeClick },
+            '#treatmentTypeGrid button[action=deleteType]': { click: this.onDeleteTreatmentTypeClick },
+            '#treatmentTypeGrid': { itemdblclick: this.onEditTreatmentTypeClick },
+
+            '#treatmentGrid button[action=addTreatment]': { click: this.onAddTreatmentClick },
+            '#treatmentGrid button[action=editTreatment]': { click: this.onEditTreatmentClick },
+            '#treatmentGrid button[action=deleteTreatment]': { click: this.onDeleteTreatmentClick },
+            '#treatmentGrid': { itemdblclick: this.onTreatmentItemDblClick },
+
+            '#invoiceGrid button[action=generateInvoices]': { click: this.onGenerateInvoicesClick },
+            '#invoiceGrid button[action=viewPdf]': { click: this.onViewInvoicePdfClick },
+            '#invoiceGrid button[action=togglePaid]': { click: this.onTogglePaidClick }, // Changed action name
+            '#invoiceGrid button[action=exportSummary]': { click: this.onExportClick },
+            '#invoiceGrid': { itemdblclick: this.onViewInvoicePdfClick }, // Double click to view PDF
+
+            // Window Buttons (using itemId for windows)
+            'window[itemId=clientWindow] button[action=save]': { click: this.onSaveClient },
+            'window[itemId=clientWindow] button[action=cancel]': { click: this.closeWindow },
+            'window[itemId=treatmentTypeWindow] button[action=save]': { click: this.onSaveTreatmentType },
+            'window[itemId=treatmentTypeWindow] button[action=cancel]': { click: this.closeWindow },
+            'window[itemId=treatmentWindow] button[action=save]': { click: this.onSaveTreatment },
+            'window[itemId=treatmentWindow] button[action=cancel]': { click: this.closeWindow },
+            'window[itemId=generateInvoiceWindow] button[action=generate]': { click: this.onConfirmGenerateInvoices },
+            'window[itemId=generateInvoiceWindow] button[action=cancel]': { click: this.closeWindow },
+            'window[itemId=exportWindow] button[action=export]': { click: this.onConfirmExport },
+            'window[itemId=exportWindow] button[action=cancel]': { click: this.closeWindow },
+
+             // Form field listeners (within the specific window)
+             'window[itemId=treatmentWindow] combobox[name=behandeling_type_id]': { select: this.onTreatmentTypeSelect }
+        });
+    },
+
+    // --- Helper Functions ---
+    closeWindow: function(button) {
+        button.up('window').close();
+    },
+
+    // Generic function to get selected record from a grid using its ref getter
+    getSelectedRecord: function(gridRefName) {
+        var getterName = 'get' + Ext.String.capitalize(gridRefName); // e.g., getClientGrid
+        if (this[getterName]) {
+             var grid = this[getterName]();
+             if (grid) {
+                var selection = grid.getSelectionModel().getSelection();
+                return selection.length > 0 ? selection[0] : null;
+             }
+        }
+        console.warn('Could not find grid for ref:', gridRefName);
+        return null;
+    },
+
+    // --- Window Creation Functions ---
+
+    createClientWindow: function(record) {
+        var isEdit = !!record; // Check if we are editing
+        var window = Ext.create('Ext.window.Window', {
+            title: isEdit ? 'Edit Client: ' + record.get('naam') : 'Add New Client',
+            itemId: 'clientWindow', // Use itemId
+            modal: true,
+            width: 500,
+            layout: 'fit',
+            items: [{
+                xtype: 'form',
+                bodyPadding: 10,
+                defaults: { anchor: '100%' },
+                items: [
+                    { xtype: 'hiddenfield', name: 'id' }, // Hidden field for ID on edit
+                    { xtype: 'textfield', name: 'naam', fieldLabel: 'Name', allowBlank: false },
+                    { xtype: 'textfield', name: 'adres', fieldLabel: 'Address' },
+                    { xtype: 'textfield', name: 'postcode', fieldLabel: 'Postcode' },
+                    { xtype: 'textfield', name: 'plaats', fieldLabel: 'City' },
+                    { xtype: 'textfield', name: 'telefoon', fieldLabel: 'Phone' },
+                    { xtype: 'textfield', name: 'email', fieldLabel: 'Email', vtype: 'email' }
+                ]
+            }],
+            buttons: [
+                { text: 'Save', action: 'save' },
+                { text: 'Cancel', action: 'cancel' }
+            ]
+        });
+
+        if (isEdit) {
+            window.down('form').loadRecord(record); // Load data if editing
+        }
+        window.show();
+    },
+
+     createTreatmentTypeWindow: function(record) {
+         var isEdit = !!record;
+        var window = Ext.create('Ext.window.Window', {
+            title: isEdit ? 'Edit Treatment Type: ' + record.get('naam') : 'Add New Treatment Type',
+            itemId: 'treatmentTypeWindow',
+            modal: true,
+            width: 500,
+            layout: 'fit',
+            items: [{
+                xtype: 'form',
+                bodyPadding: 10,
+                 defaults: { anchor: '100%' },
+                items: [
+                    { xtype: 'hiddenfield', name: 'id' },
+                    { xtype: 'textfield', name: 'naam', fieldLabel: 'Name', allowBlank: false },
+                    { xtype: 'textareafield', name: 'beschrijving', fieldLabel: 'Description' },
+                    { xtype: 'numberfield', name: 'prijs', fieldLabel: 'Price', allowBlank: false, decimalPrecision: 2, minValue: 0 },
+                    { xtype: 'combobox', name: 'prijs_type', fieldLabel: 'Price Type', allowBlank: false,
+                      store: ['per_uur', 'per_sessie'], // Simple store for options
+                      forceSelection: true
+                    }
+                ]
+            }],
+            buttons: [ { text: 'Save', action: 'save' }, { text: 'Cancel', action: 'cancel' } ]
+        });
+         if (isEdit) { window.down('form').loadRecord(record); }
+        window.show();
+    },
+
+     createTreatmentWindow: function(record) {
+         var isEdit = !!record;
+        var window = Ext.create('Ext.window.Window', {
+            title: isEdit ? 'Edit Treatment' : 'Add New Treatment',
+            itemId: 'treatmentWindow',
+            modal: true,
+            width: 550,
+            layout: 'fit',
+            items: [{
+                xtype: 'form',
+                bodyPadding: 10,
+                 defaults: { anchor: '100%' },
+                items: [
+                    { xtype: 'hiddenfield', name: 'id' },
+                    { xtype: 'combobox', name: 'client_id', fieldLabel: 'Client', allowBlank: false,
+                      store: 'clients', // Reference the store
+                      displayField: 'naam',
+                      valueField: 'id',
+                      queryMode: 'local', // Assuming clients are loaded
+                      forceSelection: true
+                    },
+                    { xtype: 'combobox', name: 'behandeling_type_id', fieldLabel: 'Treatment Type', allowBlank: false,
+                      store: 'treatmentTypes',
+                      displayField: 'naam',
+                      valueField: 'id',
+                       queryMode: 'local',
+                      forceSelection: true,
+                       listeners: {
+                           // Moved select listener here for better scoping if needed,
+                           // but controller listener should also work.
+                           // select: this.onTreatmentTypeSelect // Controller handles this
+                       }
+                    },
+                    { xtype: 'datefield', name: 'datum', fieldLabel: 'Date', allowBlank: false, format: 'Y-m-d', value: new Date() }, // Default to today
+                    { xtype: 'numberfield', name: 'aantal_uren', fieldLabel: 'Hours', decimalPrecision: 2, minValue: 0,
+                      // Initially disabled, enabled by combobox selection if needed
+                      disabled: true, // Start disabled, enable based on type selection
+                      allowBlank: true // Allow blank initially and if not per_hour
+                    },
+                    // gefactureerd and factuur_id are usually set by backend logic, not user form
+                ]
+            }],
+            buttons: [ { text: 'Save', action: 'save' }, { text: 'Cancel', action: 'cancel' } ]
+        });
+         if (isEdit) {
+             window.down('form').loadRecord(record);
+             // Manually trigger select logic after load to set hours field state correctly
+             var typeCombo = window.down('combobox[name=behandeling_type_id]');
+             var typeStore = Ext.getStore('treatmentTypes');
+             var typeRecord = typeStore.getById(record.get('behandeling_type_id'));
+             if (typeRecord) {
+                 this.updateHoursFieldState(typeCombo, typeRecord);
+             }
+         } else {
+              // For new records, maybe enable hours if default type is per_hour?
+              // Or just leave disabled until type selected.
+         }
+        window.show();
+    },
+
+     createGenerateInvoiceWindow: function() {
+        Ext.create('Ext.window.Window', {
+            title: 'Generate Invoices',
+            itemId: 'generateInvoiceWindow',
+            modal: true,
+            width: 400,
+            layout: 'fit',
+            items: [{
+                xtype: 'form',
+                bodyPadding: 10,
+                 defaults: { anchor: '100%' },
+                items: [
+                    { xtype: 'datefield', name: 'start_datum', fieldLabel: 'Start Date', allowBlank: false, format: 'Y-m-d' },
+                    { xtype: 'datefield', name: 'eind_datum', fieldLabel: 'End Date', allowBlank: false, format: 'Y-m-d' },
+                    { xtype: 'combobox', name: 'client_id', fieldLabel: 'Client (Optional)',
+                      store: 'clients', displayField: 'naam', valueField: 'id', queryMode: 'local',
+                      emptyText: 'Leave blank for all clients'
+                    }
+                ]
+            }],
+            buttons: [ { text: 'Generate', action: 'generate' }, { text: 'Cancel', action: 'cancel' } ]
+        }).show();
+    },
+
+     createExportWindow: function() {
+        Ext.create('Ext.window.Window', {
+            title: 'Export Summary',
+            itemId: 'exportWindow',
+            modal: true,
+            width: 400,
+            layout: 'fit',
+            items: [{
+                xtype: 'form',
+                bodyPadding: 10,
+                 defaults: { anchor: '100%' },
+                items: [
+                     { xtype: 'datefield', name: 'start_datum', fieldLabel: 'Start Date', allowBlank: false, format: 'Y-m-d' },
+                     { xtype: 'datefield', name: 'eind_datum', fieldLabel: 'End Date', allowBlank: false, format: 'Y-m-d' },
+                     { xtype: 'combobox', name: 'export_format', fieldLabel: 'Format', store: ['CSV', 'PDF'], value: 'CSV', allowBlank: false, forceSelection: true }
+                 ]
+            }],
+            buttons: [ { text: 'Export', action: 'export' }, { text: 'Cancel', action: 'cancel' } ]
+        }).show();
+    },
+
+
+    // --- Client Event Handlers ---
+     onAddClientClick: function() {
+         this.createClientWindow();
+     },
+
+    onEditClientClick: function() { // Handles button click and grid dblclick
+         var record = this.getSelectedRecord('clientGrid');
+         if (record) {
+             this.createClientWindow(record);
+         } else if (!arguments[0].isComponent) { // Don't show msg on grid dblclick with no selection
+              Ext.Msg.alert('Selection Error', 'Please select a client to edit.');
+         }
+     },
+
+     onDeleteClientClick: function() {
+         var record = this.getSelectedRecord('clientGrid');
+         if (record) {
+             Ext.Msg.confirm('Confirm Delete', 'Are you sure you want to delete client "' + record.get('naam') + '"?<br/>This might fail if treatments or invoices reference this client.', function(btn) {
+                 if (btn === 'yes') {
+                    var store = this.getClientGrid().getStore(); // Get store from grid
+                    store.remove(record); // Optimistic removal from UI
+
+                    record.erase({ // DELETE request via proxy
+                        success: function(rec, operation) {
+                            Ext.toast('Client deleted successfully.', 'Success');
+                            // No need to reload store usually after erase
+                        },
+                        failure: function(rec, operation) {
+                            // Error message shown by proxy listener
+                            // Rollback UI change
+                            store.rejectChanges(); // This might add it back if phantom, or use insert
+                            // Or more reliably: store.insert(operation.getInitialRecordData().index || 0, rec); // Re-insert at original position if possible
+                             Ext.toast('Failed to delete client.', 'Error');
+                        }
+                    });
+                 }
+             }, this);
+         } else {
+              Ext.Msg.alert('Selection Error', 'Please select a client to delete.');
+         }
+     },
+
+    onSaveClient: function(button) {
+        var win = button.up('window');
+        var form = win.down('form').getForm();
+        var record = form.getRecord(); // Get record if editing
+        var values = form.getValues();
+        var store = this.getClientGrid().getStore(); // Get store via grid ref
+
+        if (form.isValid()) {
+             win.setLoading('Saving...');
+
+            if (record) { // Editing existing
+                record.set(values); // Update existing record
+            } else { // Adding new
+                record = Ext.create('BillingApp.model.Client', values);
+                store.add(record); // Add to store (will be phantom until saved)
+            }
+
+            record.save({
+                 callback: function(savedRecord, operation, success) {
+                     win.setLoading(false);
+                     if (success) {
+                        win.close();
+                        Ext.toast('Client saved successfully.', 'Success');
+                        // store.load(); // Reload only if necessary (e.g., backend calculates fields)
+                     } else {
+                         // Error shown by proxy listener
+                         // If it was a new record add that failed, remove the phantom record
+                         if (operation.action === 'create' && !savedRecord.getId()) {
+                              store.remove(savedRecord);
+                         }
+                         // Reject other changes if needed
+                         // store.rejectChanges(); // Use carefully
+                          Ext.toast('Failed to save client.', 'Error');
+                     }
+                }
+            });
+        }
+    },
+
+     // --- Treatment Type Handlers ---
+     onAddTreatmentTypeClick: function() { this.createTreatmentTypeWindow(); },
+     onEditTreatmentTypeClick: function() {
+        var record = this.getSelectedRecord('treatmentTypeGrid');
+        if (record) { this.createTreatmentTypeWindow(record); }
+        else if (!arguments[0].isComponent) { Ext.Msg.alert('Selection Error', 'Please select a treatment type.'); }
+     },
+     onDeleteTreatmentTypeClick: function() {
+        var record = this.getSelectedRecord('treatmentTypeGrid');
+        if (record) {
+            Ext.Msg.confirm('Confirm Delete', 'Delete type "' + record.get('naam') + '"? <br/>Check usage in Treatments first.', function(btn) {
+                if (btn === 'yes') {
+                   var store = this.getTreatmentTypeGrid().getStore();
+                   store.remove(record);
+                    record.erase({
+                        success: function() { Ext.toast('Treatment type deleted.'); },
+                        failure: function(rec, op) { store.rejectChanges(); Ext.toast('Failed to delete type.'); }
+                    });
+                }
+            }, this);
+        } else { Ext.Msg.alert('Selection Error', 'Please select a treatment type.'); }
+     },
+     onSaveTreatmentType: function(button) {
+         var win = button.up('window');
+         var form = win.down('form').getForm();
+         var record = form.getRecord();
+         var values = form.getValues();
+         var store = this.getTreatmentTypeGrid().getStore();
+
+         if (form.isValid()) {
+             win.setLoading('Saving...');
+             if (record) { record.set(values); }
+             else { record = Ext.create('BillingApp.model.TreatmentType', values); store.add(record); }
+
+             record.save({
+                 callback: function(rec, op, success) {
+                      win.setLoading(false);
+                      if (success) {
+                          win.close(); Ext.toast('Treatment type saved.');
+                          // store.load(); // Reload if needed
+                      } else {
+                           if (op.action === 'create' && !rec.getId()) store.remove(rec);
+                           Ext.toast('Failed to save treatment type.');
+                      }
+                 }
+             });
+         }
+    },
+
+
+     // --- Treatment Handlers ---
+      onAddTreatmentClick: function() { this.createTreatmentWindow(); },
+     onEditTreatmentClick: function() {
+        var record = this.getSelectedRecord('treatmentGrid');
+        if (record) {
+            if(record.get('gefactureerd')) { Ext.Msg.alert('Edit Error', 'Cannot edit an invoiced treatment.'); return; }
+            this.createTreatmentWindow(record);
+        } else if (!arguments[0].isComponent) { Ext.Msg.alert('Selection Error', 'Please select a treatment.'); }
+     },
+     onTreatmentItemDblClick: function(grid, record) {
+         if (!record.get('gefactureerd')) { this.createTreatmentWindow(record); }
+         else { Ext.Msg.alert('Edit Error', 'Cannot edit an invoiced treatment.'); }
+     },
+     onDeleteTreatmentClick: function() {
+        var record = this.getSelectedRecord('treatmentGrid');
+        if (record) {
+             if(record.get('gefactureerd')) { Ext.Msg.alert('Delete Error', 'Cannot delete an invoiced treatment.'); return; }
+            Ext.Msg.confirm('Confirm Delete', 'Delete this treatment record?', function(btn) {
+                if (btn === 'yes') {
+                     var store = this.getTreatmentGrid().getStore();
+                     store.remove(record);
+                    record.erase({
+                        success: function() { Ext.toast('Treatment deleted.'); },
+                        failure: function(rec, op) { store.rejectChanges(); Ext.toast('Failed to delete treatment.'); }
+                    });
+                }
+            }, this);
+        } else { Ext.Msg.alert('Selection Error', 'Please select a treatment.'); }
+     },
+     onSaveTreatment: function(button) {
+        var win = button.up('window');
+        var formPanel = win.down('form'); // Get the form panel
+        var form = formPanel.getForm(); // Get the BasicForm
+        var record = form.getRecord();
+        var values = form.getValues();
+        var store = this.getTreatmentGrid().getStore();
+
+        if (form.isValid()) {
+            // Format date explicitly
+            values.datum = Ext.Date.format(form.findField('datum').getValue(), 'Y-m-d');
+
+            // Handle hours based on type (check associated record)
+            var typeStore = Ext.getStore('treatmentTypes');
+            var typeRecord = typeStore.getById(parseInt(values.behandeling_type_id));
+            var hoursField = form.findField('aantal_uren');
+            if (typeRecord && typeRecord.get('prijs_type') !== 'per_uur') {
+                values.aantal_uren = null; // Nullify if not per hour
+            } else if (hoursField.isDisabled()) {
+                 values.aantal_uren = null; // Ensure it's null if field was disabled
+            }
+             // Validation for hours if type IS per_hour and field is enabled should be handled by allowBlank on field?
+             // Or add explicit check here if needed.
+
+             win.setLoading('Saving...');
+             if (record) { // Editing
+                record.set(values);
+             } else { // Adding
+                 record = Ext.create('BillingApp.model.Treatment', values);
+                  store.add(record);
+             }
+
+            record.save({
+                callback: function(rec, op, success) {
+                    win.setLoading(false);
+                     if (success) {
+                        win.close();
+                        Ext.toast('Treatment saved.');
+                        store.load(); // Reload treatments to show joined data correctly & refresh paging
+                     } else {
+                         if(op.action === 'create' && !rec.getId()) store.remove(rec);
+                         Ext.toast('Failed to save treatment.');
+                     }
+                }
+            });
+        }
+    },
+
+    // Handler for Treatment Type combo selection in Treatment form
+    onTreatmentTypeSelect: function(combo, record) {
+        // record here is the selected TreatmentType record
+        this.updateHoursFieldState(combo, record);
+    },
+
+    // Helper to enable/disable hours field
+    updateHoursFieldState: function(combo, typeRecord) {
+        var form = combo.up('form'); // Find the parent form
+         if (!form) return; // Should not happen
+         var hoursField = form.down('numberfield[name=aantal_uren]'); // Find hours field within *this* form
+
+         if (hoursField) {
+             if (typeRecord && typeRecord.get('prijs_type') === 'per_uur') {
+                 hoursField.enable();
+                 hoursField.allowBlank = false; // Require hours if per_hour type
+             } else {
+                 hoursField.disable();
+                 hoursField.allowBlank = true; // Not required if not per_hour
+                 hoursField.setValue(null);    // Clear value when disabling
+             }
+              // Trigger validation display update
+             hoursField.validate();
+         }
+    },
+
+    // --- Invoice Handlers ---
+    onGenerateInvoicesClick: function() {
+        this.createGenerateInvoiceWindow();
+    },
+
+    onConfirmGenerateInvoices: function(button) {
+        var win = button.up('window');
+        var form = win.down('form').getForm();
+         if (form.isValid()) {
+             var values = form.getValues();
+             win.setLoading('Generating...');
+
+            // *** Add AJAX Call to your backend endpoint ***
+            Ext.Ajax.request({
+                url: '/api/facturen/generate', // Your backend endpoint
+                method: 'POST',
+                jsonData: { // Send parameters as JSON
+                    start_datum: Ext.Date.format(values.start_datum, 'Y-m-d'),
+                    eind_datum: Ext.Date.format(values.eind_datum, 'Y-m-d'),
+                    client_id: values.client_id || null // Send null if blank
+                },
+                success: function(response) {
+                    win.setLoading(false);
+                    var result = Ext.decode(response.responseText);
+                    if (result.success) {
+                        win.close();
+                        Ext.Msg.alert('Success', result.message || 'Invoices generated successfully.');
+                        Ext.getStore('invoices').load(); // Reload invoice grid
+                        Ext.getStore('treatments').load(); // Reload treatments grid (status might change)
+                    } else {
+                        Ext.Msg.alert('Generation Failed', result.error || 'Could not generate invoices.');
+                    }
+                },
+                failure: function(response) {
+                     win.setLoading(false);
+                     Ext.Msg.alert('Server Error', 'Status: ' + response.status + ' - ' + response.statusText);
+                }
+            });
+
+         }
+    },
+
+    onViewInvoicePdfClick: function() {
+        var record = this.getSelectedRecord('invoiceGrid');
+        if (record) {
+            // Construct URL to fetch PDF - Adapt to your backend setup
+            var pdfUrl = '/api/facturen/' + record.get('id') + '/pdf';
+            // Open in new tab/window
+             window.open(pdfUrl, '_blank');
+        } else if (!arguments[0].isComponent) {
+            Ext.Msg.alert('Selection Error', 'Please select an invoice to view.');
+        }
+    },
+
+    onTogglePaidClick: function() {
+        var record = this.getSelectedRecord('invoiceGrid');
+        if (record) {
+            var invoiceId = record.get('id');
+            var currentStatus = record.get('betaald');
+            var newStatus = !currentStatus;
+
+             Ext.Msg.confirm('Confirm Status Change',
+                'Mark invoice ' + record.get('factuur_nummer') + ' as ' + (newStatus ? 'Paid' : 'Unpaid') + '?',
+                function(btn) {
+                 if (btn === 'yes') {
+                    var grid = this.getInvoiceGrid();
+                    grid.mask('Updating...'); // Mask grid while saving
+
+                    // *** Add AJAX Call to your backend endpoint ***
+                    Ext.Ajax.request({
+                        url: '/api/facturen/' + invoiceId + '/status', // Your endpoint
+                        method: 'PUT', // Or POST
+                        jsonData: { betaald: newStatus },
+                        success: function(response) {
+                            grid.unmask();
+                            var result = Ext.decode(response.responseText);
+                            if (result.success) {
+                                // Update record in store without full reload
+                                record.set('betaald', newStatus);
+                                record.commit(); // Mark change as non-dirty
+                                Ext.toast('Invoice status updated.');
+                            } else {
+                                Ext.Msg.alert('Update Failed', result.error || 'Could not update status.');
+                                record.reject(); // Revert change in UI
+                            }
+                        },
+                        failure: function(response) {
+                             grid.unmask();
+                             Ext.Msg.alert('Server Error', 'Status: ' + response.status + ' - ' + response.statusText);
+                             record.reject(); // Revert change in UI
+                        }
+                    });
+                 }
+             }, this); // Pass controller scope to callback
+
+        } else {
+            Ext.Msg.alert('Selection Error', 'Please select an invoice to update.');
+        }
+    },
+
+    onExportClick: function() {
+        this.createExportWindow();
+    },
+
+    onConfirmExport: function(button) {
+         var win = button.up('window');
+         var form = win.down('form').getForm();
+          if (form.isValid()) {
+              var values = form.getValues();
+              // Construct URL with query parameters for export
+              var exportUrl = Ext.String.urlAppend('/api/export/summary', Ext.Object.toQueryString({
+                  start_datum: Ext.Date.format(values.start_datum, 'Y-m-d'),
+                  eind_datum: Ext.Date.format(values.eind_datum, 'Y-m-d'),
+                  format: values.export_format
+              }));
+
+              // Option 1: Open URL directly (browser handles download)
+              // window.open(exportUrl);
+
+              // Option 2: Use Ext.Ajax if backend returns file info or needs headers
+              // (More complex, involves handling response potentially)
+              Ext.Msg.alert('Export Started', 'Your export will download shortly. URL (for testing):<br>' + exportUrl);
+              // Simulate download start
+               window.location.href = exportUrl;
+
+
+              win.close();
+          }
+    }
+
+}); // End Controller Definition
