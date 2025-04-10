@@ -2,7 +2,7 @@
 Ext.application({
     name: 'BillingApp',
     extend: 'Ext.app.Application',
-
+  /*
     // --- Explicitly require necessary classes ---
     requires: [
         'Ext.container.Viewport',
@@ -27,7 +27,7 @@ Ext.application({
         'Ext.Date',
         'Ext.MessageBox'
     ],
-
+*/
     // --- Define Models ---
     models: {
         Client: Ext.define('BillingApp.model.Client', {
